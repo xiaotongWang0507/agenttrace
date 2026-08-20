@@ -16,6 +16,7 @@ Use AgentTrace to capture agent execution traces plus the files and costs create
 5. Extract multi-version file trajectories with `GitVersionManager.extract_trajectory(...)`.
 6. Before final packaging, generate a redacted preview with `agenttrace trajectory-preview`.
 7. Show the preview to the expert and export only after they confirm the preview id with `agenttrace trajectory-export`.
+8. Treat the exported zip as the deliverable. It contains `trajectory.json` plus redacted file copies under `files/redacted/`.
 
 ## Dynamic Redaction
 
@@ -29,7 +30,17 @@ Keep useful task signals visible when they are not sensitive in context. Do not 
 agenttrace snapshot --repo . --db traces.db --session-id task-001 --message "draft" path/to/file
 agenttrace tokens --db traces.db --session-id task-001
 agenttrace trajectory-preview --repo . --db traces.db --session-id task-001 --task-context "..." --output preview.json path/to/file
-agenttrace trajectory-export --repo . --db traces.db --session-id task-001 --task-context "..." --confirmed-preview-id <id> --output package.json path/to/file
+agenttrace trajectory-export --repo . --db traces.db --session-id task-001 --task-context "..." --confirmed-preview-id <id> --output package.zip path/to/file
+```
+
+Confirmed package layout:
+
+```text
+package/
+  trajectory.json
+  files/redacted/latest/...
+  files/redacted/versions/<commit-sha>/...
+package.zip
 ```
 
 ## Guardrails

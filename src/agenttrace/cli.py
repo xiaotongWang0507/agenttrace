@@ -101,7 +101,7 @@ def preview_command(args):
     return 0
 
 def export_command(args):
-    """Export a redacted trajectory package after expert confirmation."""
+    """Export a redacted trajectory directory and zip after expert confirmation."""
     tracer = TraceManager(db_path=args.db, colored_logging=not args.no_color)
     builder = TrajectoryBuilder(
         repo_path=args.repo,
@@ -158,13 +158,13 @@ def main():
     preview_parser.add_argument("--no-color", action="store_true", help="Disable colored trace logging")
     preview_parser.add_argument("paths", nargs="*", help="Paths to include")
 
-    export_parser = subparsers.add_parser("trajectory-export", help="Export a confirmed redacted trajectory package")
+    export_parser = subparsers.add_parser("trajectory-export", help="Export a confirmed redacted trajectory directory and zip")
     export_parser.add_argument("--repo", default=".", help="Repository to extract from")
     export_parser.add_argument("--db", default="traces.db", help="Trace database path")
     export_parser.add_argument("--session-id", required=True, help="Task/session id")
     export_parser.add_argument("--task-context", default="", help="Task context used to build the redaction policy")
     export_parser.add_argument("--rev-range", default=None, help="Optional git revision range")
-    export_parser.add_argument("--output", required=True, help="Output JSON package path")
+    export_parser.add_argument("--output", required=True, help="Output zip package path")
     export_parser.add_argument("--confirmed-preview-id", required=True, help="Preview id confirmed by the expert")
     export_parser.add_argument("--no-color", action="store_true", help="Disable colored trace logging")
     export_parser.add_argument("paths", nargs="*", help="Paths to include")

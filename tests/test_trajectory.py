@@ -2,6 +2,7 @@ import json
 import subprocess
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from agenttrace import TraceManager
@@ -134,15 +135,33 @@ class TestTrajectoryCapture(unittest.TestCase):
         with self.assertRaises(PackagingApprovalRequired):
             builder.export_package(paths=["supplier.txt"])
 
-        output_path = self.root / "package.json"
+        output_path = self.root / "package.zip"
         result = builder.export_package(
             paths=["supplier.txt"],
             output_path=output_path,
             confirmed_preview_id=preview["approval"]["preview_id"],
         )
-        exported = json.loads(output_path.read_text(encoding="utf-8"))
+        package_dir = Path(result["package_dir"])
+        trajectory_path = package_dir / "trajectory.json"
+        redacted_file = package_dir / "files" / "redacted" / "latest" / "supplier.txt"
+        version_file = package_dir / "files" / "redacted" / "versions" / preview["git"]["head"][:12] / "supplier.txt"
+        exported = json.loads(trajectory_path.read_text(encoding="utf-8"))
+
         self.assertEqual(result["output_path"], str(output_path))
+        self.assertEqual(result["package_type"], "zip")
+        self.assertTrue(output_path.exists())
+        self.assertTrue(trajectory_path.exists())
+        self.assertTrue(redacted_file.exists())
+        self.assertTrue(version_file.exists())
+        self.assertNotIn("Vendor Alpha", redacted_file.read_text(encoding="utf-8"))
+        self.assertNotIn("1200", redacted_file.read_text(encoding="utf-8"))
         self.assertEqual(exported["approval"]["confirmed_preview_id"], preview["approval"]["preview_id"])
+        self.assertEqual(exported["files"]["supplier.txt"]["versions"][0]["package_file"], "files/redacted/versions/" + preview["git"]["head"][:12] + "/supplier.txt")
+        with zipfile.ZipFile(output_path) as package_zip:
+            names = set(package_zip.namelist())
+        self.assertIn("trajectory.json", names)
+        self.assertIn("files/redacted/latest/supplier.txt", names)
+        self.assertIn("files/redacted/versions/" + preview["git"]["head"][:12] + "/supplier.txt", names)
 
     def test_dynamic_redactor_uses_task_context_without_fixed_examples(self):
         redactor = DynamicRedactor(

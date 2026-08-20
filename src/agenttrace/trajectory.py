@@ -5,6 +5,7 @@ import mimetypes
 import re
 import subprocess
 import uuid
+import zipfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -329,11 +330,82 @@ class TrajectoryBuilder:
             "confirmed_preview_id": confirmed_preview_id,
             "confirmed_at": datetime.now().isoformat(),
         }
+        output = Path(output_path or f"agenttrace_trajectory_{confirmed_preview_id}.zip")
+        if output.suffix.lower() != ".zip":
+            output = output.with_suffix(".zip")
+        package_dir = output.with_suffix("")
 
-        output = Path(output_path or f"agenttrace_trajectory_{confirmed_preview_id}.json")
-        output.write_text(json.dumps(package, ensure_ascii=False, indent=2), encoding="utf-8")
-        self._trace_event("trajectory_package_export", {"preview_id": confirmed_preview_id, "output_path": str(output)})
-        return {"output_path": str(output), "preview_id": confirmed_preview_id}
+        self._write_package_files(package, package_dir)
+        trajectory_path = package_dir / "trajectory.json"
+        trajectory_path.write_text(json.dumps(package, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._zip_package(package_dir, output)
+
+        self._trace_event(
+            "trajectory_package_export",
+            {
+                "preview_id": confirmed_preview_id,
+                "output_path": str(output),
+                "package_dir": str(package_dir),
+                "package_type": "zip",
+            },
+        )
+        return {
+            "output_path": str(output),
+            "package_dir": str(package_dir),
+            "package_type": "zip",
+            "preview_id": confirmed_preview_id,
+        }
+
+    def _write_package_files(self, package, package_dir):
+        latest_by_path = {}
+        for file_path, file_entry in package.get("files", {}).items():
+            for index, version in enumerate(file_entry.get("versions", []), start=1):
+                package_file = self._write_version_file(package_dir, file_path, version, index)
+                if package_file:
+                    version["package_file"] = package_file
+                    latest_by_path[file_path] = package_file
+                self._strip_inline_content(version)
+
+        for file_path, package_file in latest_by_path.items():
+            source = package_dir / package_file
+            latest = package_dir / "files" / "redacted" / "latest" / file_path
+            latest.parent.mkdir(parents=True, exist_ok=True)
+            latest.write_bytes(source.read_bytes())
+            package["files"][file_path]["latest_package_file"] = self._relative_package_path(latest, package_dir)
+
+        package["package"] = {
+            "format": "agenttrace-redacted-trajectory",
+            "version": 1,
+            "layout": {
+                "trajectory": "trajectory.json",
+                "latest_files": "files/redacted/latest/",
+                "versioned_files": "files/redacted/versions/",
+            },
+        }
+
+    def _write_version_file(self, package_dir, file_path, version, index):
+        commit = (version.get("commit") or f"version-{index}")[:12]
+        target = package_dir / "files" / "redacted" / "versions" / commit / file_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if version.get("encoding") == "utf-8" and "content" in version:
+            target.write_text(version["content"], encoding="utf-8")
+        else:
+            return None
+        return self._relative_package_path(target, package_dir)
+
+    def _strip_inline_content(self, version):
+        version.pop("content", None)
+        version.pop("content_base64", None)
+
+    def _zip_package(self, package_dir, output):
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as package_zip:
+            for path in sorted(package_dir.rglob("*")):
+                if path.is_file():
+                    package_zip.write(path, self._relative_package_path(path, package_dir))
+
+    def _relative_package_path(self, path, package_dir):
+        return path.relative_to(package_dir).as_posix()
 
     def _preview_id(self, redacted_package):
         payload = json.dumps(redacted_package, ensure_ascii=False, sort_keys=True)

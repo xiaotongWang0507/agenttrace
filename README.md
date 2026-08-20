@@ -17,6 +17,8 @@ The original AgentTrace captured agent traces. Expert task production needs a wi
 
 This version treats the trace database and git history together as the task provenance layer. Final package export is blocked until a redacted preview has been generated and confirmed.
 
+For a non-technical expert-facing flow, see [专家任务采集与脱敏打包流程说明](docs/expert-workflow-zh.md).
+
 ## Installation
 
 Install from source:
@@ -173,7 +175,7 @@ agenttrace trajectory-preview \
 
 Show `redacted-preview.json` to the expert. The preview contains an `approval.preview_id`.
 
-Export is blocked without that confirmed preview id:
+Export is blocked without that confirmed preview id. Confirmed export writes both a directory package and a zip archive:
 
 ```bash
 agenttrace trajectory-export \
@@ -182,9 +184,28 @@ agenttrace trajectory-export \
   --session-id task-001 \
   --task-context "expert task production with private business inputs" \
   --confirmed-preview-id <preview_id> \
-  --output task-001-trajectory.json \
+  --output task-001-package.zip \
   inputs/request.md work/draft.md
 ```
+
+The package layout is:
+
+```text
+task-001-package/
+  trajectory.json
+  files/
+    redacted/
+      latest/
+        inputs/request.md
+        work/draft.md
+      versions/
+        <commit-sha>/
+          inputs/request.md
+          work/draft.md
+task-001-package.zip
+```
+
+`trajectory.json` contains provenance, git metadata, token totals, redaction findings, approval metadata, and file references. The actual redacted text file contents live under `files/redacted/`. Inline file content is removed from the confirmed package JSON to avoid duplicating large files. Binary files are represented by metadata unless a workflow-specific redactor converts them into a safe redacted text/file representation before export.
 
 If task context or selected files change, generate a new preview and confirm the new preview id.
 
@@ -195,7 +216,7 @@ agenttrace start
 agenttrace snapshot --repo . --db traces.db --session-id task-001 --message "checkpoint" path/to/file
 agenttrace tokens --db traces.db --session-id task-001
 agenttrace trajectory-preview --repo . --db traces.db --session-id task-001 --task-context "..." --output preview.json path/to/file
-agenttrace trajectory-export --repo . --db traces.db --session-id task-001 --task-context "..." --confirmed-preview-id <id> --output package.json path/to/file
+agenttrace trajectory-export --repo . --db traces.db --session-id task-001 --task-context "..." --confirmed-preview-id <id> --output package.zip path/to/file
 ```
 
 ## Python API Reference
