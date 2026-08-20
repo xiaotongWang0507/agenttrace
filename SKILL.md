@@ -29,14 +29,19 @@ Keep useful task signals visible when they are not sensitive in context. Do not 
 ```bash
 agenttrace snapshot --repo . --db traces.db --session-id task-001 --message "draft" path/to/file
 agenttrace tokens --db traces.db --session-id task-001
-agenttrace trajectory-preview --repo . --db traces.db --session-id task-001 --task-context "..." --output preview.json path/to/file
+agenttrace trajectory-preview --repo . --db traces.db --session-id task-001 --task-context "..." --output preview-dir path/to/file
 agenttrace trajectory-export --repo . --db traces.db --session-id task-001 --task-context "..." --confirmed-preview-id <id> --output package.zip path/to/file
 ```
 
-Confirmed package layout:
+Preview and confirmed package layout:
 
 ```text
-package/
+preview-dir/
+  trajectory-preview.json
+  files/redacted/latest/...
+  files/redacted/versions/<commit-sha>/...
+
+package-dir/
   trajectory.json
   files/redacted/latest/...
   files/redacted/versions/<commit-sha>/...
