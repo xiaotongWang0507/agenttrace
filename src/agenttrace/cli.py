@@ -82,7 +82,7 @@ def snapshot_command(args):
     return 0
 
 def preview_command(args):
-    """Show a redacted trajectory preview before packaging."""
+    """Write a redacted preview directory before packaging."""
     tracer = TraceManager(db_path=args.db, colored_logging=not args.no_color)
     builder = TrajectoryBuilder(
         repo_path=args.repo,
@@ -90,14 +90,12 @@ def preview_command(args):
         session_id=args.session_id,
         task_context=args.task_context or "",
     )
-    preview = builder.preview_package(paths=args.paths, rev_range=args.rev_range)
-    payload = json.dumps(preview, ensure_ascii=False, indent=2)
-    if args.output:
-        with open(args.output, "w", encoding="utf-8") as file_obj:
-            file_obj.write(payload)
-        print(args.output)
-    else:
-        print(payload)
+    result = builder.write_preview_package(
+        paths=args.paths,
+        output_dir=args.output,
+        rev_range=args.rev_range,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
 def export_command(args):
@@ -148,13 +146,13 @@ def main():
     snapshot_parser.add_argument("--no-color", action="store_true", help="Disable colored trace logging")
     snapshot_parser.add_argument("paths", nargs="*", help="Paths to include in the snapshot")
 
-    preview_parser = subparsers.add_parser("trajectory-preview", help="Generate a redacted trajectory preview")
+    preview_parser = subparsers.add_parser("trajectory-preview", help="Generate a redacted preview directory")
     preview_parser.add_argument("--repo", default=".", help="Repository to extract from")
     preview_parser.add_argument("--db", default="traces.db", help="Trace database path")
     preview_parser.add_argument("--session-id", required=True, help="Task/session id")
     preview_parser.add_argument("--task-context", default="", help="Task context used to build the redaction policy")
     preview_parser.add_argument("--rev-range", default=None, help="Optional git revision range")
-    preview_parser.add_argument("--output", help="Write preview JSON to this path")
+    preview_parser.add_argument("--output", help="Write preview directory to this path")
     preview_parser.add_argument("--no-color", action="store_true", help="Disable colored trace logging")
     preview_parser.add_argument("paths", nargs="*", help="Paths to include")
 

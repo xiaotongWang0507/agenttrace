@@ -163,6 +163,41 @@ class TestTrajectoryCapture(unittest.TestCase):
         self.assertIn("files/redacted/latest/supplier.txt", names)
         self.assertIn("files/redacted/versions/" + preview["git"]["head"][:12] + "/supplier.txt", names)
 
+    def test_preview_writes_redacted_directory_for_expert_review(self):
+        sensitive = self.repo / "supplier.txt"
+        sensitive.write_text(
+            "Vendor Alpha offered price 1200 to customer Beta.",
+            encoding="utf-8",
+        )
+        run_git(self.repo, "add", "supplier.txt")
+        run_git(self.repo, "commit", "-m", "supplier note")
+
+        tracer = TraceManager(db_path=str(self.db_path), colored_logging=False)
+        builder = TrajectoryBuilder(
+            repo_path=self.repo,
+            tracer=tracer,
+            session_id="task-preview",
+            task_context="supplier sourcing workflow with commercial terms",
+        )
+        preview_dir = self.root / "preview"
+
+        result = builder.write_preview_package(paths=["supplier.txt"], output_dir=preview_dir)
+        trajectory_path = preview_dir / "trajectory-preview.json"
+        redacted_file = preview_dir / "files" / "redacted" / "latest" / "supplier.txt"
+        preview = json.loads(trajectory_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result["preview_dir"], str(preview_dir))
+        self.assertEqual(result["package_type"], "preview-directory")
+        self.assertFalse(preview["approval"]["confirmed"])
+        self.assertTrue(trajectory_path.exists())
+        self.assertTrue(redacted_file.exists())
+        self.assertNotIn("Vendor Alpha", redacted_file.read_text(encoding="utf-8"))
+        self.assertNotIn("1200", redacted_file.read_text(encoding="utf-8"))
+        self.assertEqual(
+            preview["files"]["supplier.txt"]["latest_package_file"],
+            "files/redacted/latest/supplier.txt",
+        )
+
     def test_dynamic_redactor_uses_task_context_without_fixed_examples(self):
         redactor = DynamicRedactor(
             task_context="analyze supplier quote documents and customer-specific terms"

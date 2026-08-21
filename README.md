@@ -169,11 +169,11 @@ agenttrace trajectory-preview \
   --db traces.db \
   --session-id task-001 \
   --task-context "expert task production with private business inputs" \
-  --output redacted-preview.json \
+  --output redacted-preview \
   inputs/request.md work/draft.md
 ```
 
-Show `redacted-preview.json` to the expert. The preview contains an `approval.preview_id`.
+Show the `redacted-preview/` directory to the expert. It contains `trajectory-preview.json` plus the same `files/redacted/latest/...` and `files/redacted/versions/...` structure used by the final package. The preview metadata contains an `approval.preview_id`.
 
 Export is blocked without that confirmed preview id. Confirmed export writes both a directory package and a zip archive:
 
@@ -215,7 +215,7 @@ If task context or selected files change, generate a new preview and confirm the
 agenttrace start
 agenttrace snapshot --repo . --db traces.db --session-id task-001 --message "checkpoint" path/to/file
 agenttrace tokens --db traces.db --session-id task-001
-agenttrace trajectory-preview --repo . --db traces.db --session-id task-001 --task-context "..." --output preview.json path/to/file
+agenttrace trajectory-preview --repo . --db traces.db --session-id task-001 --task-context "..." --output preview-dir path/to/file
 agenttrace trajectory-export --repo . --db traces.db --session-id task-001 --task-context "..." --confirmed-preview-id <id> --output package.zip path/to/file
 ```
 

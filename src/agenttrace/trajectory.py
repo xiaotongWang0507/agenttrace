@@ -314,6 +314,36 @@ class TrajectoryBuilder:
         self._trace_event("redaction_preview", {"preview_id": preview_id, "paths": list(redacted.get("files", {}).keys())})
         return redacted
 
+    def write_preview_package(self, paths=None, output_dir=None, rev_range=None):
+        preview = json.loads(json.dumps(self.preview_package(paths=paths, rev_range=rev_range)))
+        preview_dir = self._coerce_directory_path(
+            output_dir or f"agenttrace_preview_{preview['approval']['preview_id']}"
+        )
+        self._write_package_files(preview, preview_dir)
+        trajectory_path = preview_dir / "trajectory-preview.json"
+        trajectory_path.write_text(json.dumps(preview, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._trace_event(
+            "redaction_preview_directory",
+            {
+                "preview_id": preview["approval"]["preview_id"],
+                "preview_dir": str(preview_dir),
+                "package_type": "preview-directory",
+            },
+        )
+        self._last_preview = preview
+        return {
+            "preview_dir": str(preview_dir),
+            "trajectory_path": str(trajectory_path),
+            "package_type": "preview-directory",
+            "preview_id": preview["approval"]["preview_id"],
+        }
+
+    def _coerce_directory_path(self, path):
+        directory = Path(path)
+        if directory.suffix:
+            return directory.with_suffix("")
+        return directory
+
     def export_package(self, paths=None, output_path=None, confirmed_preview_id=None, rev_range=None):
         if not confirmed_preview_id:
             raise PackagingApprovalRequired("Export requires a confirmed redaction preview id.")

@@ -147,6 +147,25 @@
 请检查脱敏后的文件和轨迹摘要，确认无敏感信息后再打包。
 ```
 
+脱敏预览不是单个 JSON 文件，而是一个可以打开浏览的文件夹：
+
+```text
+redacted-preview/
+  trajectory-preview.json
+  files/
+    redacted/
+      latest/
+        final-report.docx
+        analysis.xlsx
+      versions/
+        <version-1>/
+          analysis.xlsx
+        <version-2>/
+          final-report.docx
+```
+
+专家主要检查 `files/redacted/latest/` 里的最新脱敏文件；需要追溯时再查看 `files/redacted/versions/` 里的历史版本。
+
 ## 7. 专家检查脱敏结果
 
 专家检查的是脱敏后的文件，而不是原始敏感文件。
@@ -155,7 +174,7 @@
 
 ```text
 文件：final-report.docx
-脱敏后路径：files/redacted/latest/final-report.docx
+脱敏后路径：redacted-preview/files/redacted/latest/final-report.docx
 状态：已脱敏
 发现项：12 处
 ```
